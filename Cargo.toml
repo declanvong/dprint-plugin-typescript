@@ -25,7 +25,8 @@ wasm = ["serde_json", "dprint-core/wasm"]
 tracing = ["dprint-core/tracing"]
 
 [dependencies]
-dprint-core = { version = "0.43.0", features = ["formatting"] }
+# dprint-core = { version = "0.43.0", features = ["formatting"] }
+dprint-core = { git = "https://github.com/Canva/dprint", features = ["formatting"], branch = "main" }
 fnv = "1.0.7"
 swc_common = "0.10.21"
 swc_ecmascript = { version = "0.45.0", features = ["parser"] }
