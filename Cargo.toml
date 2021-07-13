@@ -25,8 +25,9 @@ wasm = ["serde_json", "dprint-core/wasm"]
 tracing = ["dprint-core/tracing"]
 
 [dependencies]
+# This original line only works when depending on a public version, which doesn't have some of the needed changes; leaving this here to simplify merge conflict resolution when pulling in upstream
 # dprint-core = { version = "0.43.0", features = ["formatting"] }
-dprint-core = { git = "https://github.com/Canva/dprint", features = ["formatting"], branch = "main" }
+dprint-core = { path = "./dprint/crates/core", features = ["formatting"] }
 fnv = "1.0.7"
 swc_common = "0.10.21"
 swc_ecmascript = { version = "0.45.0", features = ["parser"] }

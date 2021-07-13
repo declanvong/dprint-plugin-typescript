@@ -20,6 +20,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    # This checkout needs to happen AFTER the main checkout,
+    # as each checkout cleans their target path before cloning
+    - name: Check out dprint repo
+      uses: actions/checkout@v2
+      with:
+        repository: Canva/dprint
+        ref: refs/heads/main
+        path: ./dprint
+        token: ${{ secrets.DPRINT_REPO_GITHUB_TOKEN }}
     - name: Install wasm32 target
       if: matrix.config.kind == 'test_release'
       run: rustup target add wasm32-unknown-unknown
