@@ -28,6 +28,10 @@ tracing = ["dprint-core/tracing"]
 # This original line only works when depending on a public version, which doesn't have some of the needed changes; leaving this here to simplify merge conflict resolution when pulling in upstream
 # dprint-core = { version = "0.43.0", features = ["formatting"] }
 dprint-core = { path = "./dprint/crates/core", features = ["formatting"] }
+# Comment the line above and use the following line instead with CARGO_NET_GIT_FETCH_WITH_CLI=true for local development
+# E.g.: CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --target wasm32-unknown-unknown
+# dprint-core = { git = "ssh://org-2562356@github.com/Canva/dprint.git", features = ["formatting"], branch = "main" }
+
 fnv = "1.0.7"
 swc_common = "0.10.21"
 swc_ecmascript = { version = "0.45.0", features = ["parser"] }
