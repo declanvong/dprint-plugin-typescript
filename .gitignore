@@ -1,3 +1,6 @@
+# local checkout of the dprint core
+/dprint
+
 /target
 **/*.rs.bk
 sourcemap
