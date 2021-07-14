@@ -2706,7 +2706,7 @@ fn parse_jsx_opening_element<'a>(node: &'a JSXOpeningElement, context: &mut Cont
             single_line_space_at_start: true,
             single_line_space_at_end: node.self_closing(),
             custom_single_line_separator: None,
-            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_double_indented(),
+            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
             force_possible_newline_at_start: false,
             node_sorter: None,
         }, context));
@@ -2891,7 +2891,6 @@ fn parse_string_literal<'a>(node: &'a Str, context: &mut Context<'a>) -> PrintIt
                 format_with_double(string_value)
             }
         }
-
 
         fn format_with_double(string_value: String) -> String {
             format!("\"{}\"", string_value.replace("\"", "\\\""))
@@ -4482,7 +4481,7 @@ fn parse_type_parameters<'a>(node: TypeParamNode<'a>, context: &mut Context<'a>)
         single_line_space_at_start: false,
         single_line_space_at_end: false,
         custom_single_line_separator: None,
-        multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_double_indented(),
+        multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
         force_possible_newline_at_start: false,
         node_sorter: None,
     }, context));
@@ -4584,7 +4583,7 @@ fn parse_union_or_intersection_type<'a>(node: UnionOrIntersectionType<'a>, conte
     let is_parent_union_or_intersection = matches!(node.node.parent().unwrap().kind(), NodeKind::TsUnionType | NodeKind::TsIntersectionType);
     let multi_line_options = if !is_parent_union_or_intersection {
         if use_surround_newlines(&node.node) {
-            parser_helpers::MultiLineOptions::surround_newlines_double_indented()
+            parser_helpers::MultiLineOptions::surround_newlines_indented()
         } else if has_leading_comments {
             parser_helpers::MultiLineOptions::same_line_no_indent()
         } else {
@@ -5431,7 +5430,7 @@ fn parse_parameters_or_arguments<'a, F>(opts: ParseParametersOrArgumentsOptions<
                 single_line_space_at_start: false,
                 single_line_space_at_end: false,
                 custom_single_line_separator: None,
-                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_double_indented(),
+                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
                 force_possible_newline_at_start: is_parameters,
                 node_sorter: None,
             }, context));
@@ -5926,7 +5925,7 @@ fn parse_node_in_parens<'a>(
     return parse_surrounded_by_tokens(|context| {
         let parsed_node = parse_node(context);
         if force_use_new_lines {
-            surround_with_new_lines(with_indent_times(parsed_node, 2))
+            surround_with_new_lines(with_indent(parsed_node))
         } else if opts.prefer_hanging {
             parsed_node
         } else {
