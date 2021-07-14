@@ -1344,7 +1344,7 @@ fn parse_arrow_func_expr<'a>(node: &'a ArrowExpr, context: &mut Context<'a>) -> 
             ));
         }
 
-        items.push_condition(conditions::with_indent_if_start_of_line_or_start_of_line_indented(parsed_body.into()));
+        items.push_condition(conditions::indent_if_start_of_line(parsed_body.into()));
         items.push_info(end_body_info);
     }
 
@@ -2704,7 +2704,7 @@ fn parse_jsx_opening_element<'a>(node: &'a JSXOpeningElement, context: &mut Cont
             allow_blank_lines: false,
             separator: Separator::none(),
             single_line_space_at_start: true,
-            single_line_space_at_end: false,
+            single_line_space_at_end: node.self_closing(),
             custom_single_line_separator: None,
             multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_double_indented(),
             force_possible_newline_at_start: false,
@@ -2726,6 +2726,10 @@ fn parse_jsx_opening_element<'a>(node: &'a JSXOpeningElement, context: &mut Cont
     }
 
     if node.self_closing() {
+        if node.attrs.is_empty() {
+            items.push_str(""); // force current line indentation
+            items.extend(space_if_not_start_line());
+        }
         items.push_str("/");
     } else {
         if context.config.jsx_attributes_prefer_hanging {
