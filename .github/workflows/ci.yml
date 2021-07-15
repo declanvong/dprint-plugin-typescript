@@ -141,7 +141,10 @@ jobs:
 
             * [JS Formatter](https://github.com/dprint/js-formatter) - Browser/Deno and Node
             * [npm package](https://www.npmjs.com/package/@dprint/typescript)
-        draft: false
+        # We're only creating a draft because the way the action-gh-release action works is that it creates the release first and then uploads assets to it
+        # However there is no way to subscribe to asset uploads, so we need to create a draft release first, upload the assets and then manually finalize it
+        # in order to get the correct release event with the attached asset
+        draft: true
 
       # PLUGIN PUBLISH
     # - name: Checkout plugins repo
