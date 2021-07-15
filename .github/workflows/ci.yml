@@ -26,7 +26,8 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: Canva/dprint
-        ref: refs/heads/main
+        # This points to the commit that has the right dprint-core state
+        ref: ffdbe5066383a7edc0a75f5096f52cde0c2f4cd5
         path: ./dprint
         token: ${{ secrets.DPRINT_REPO_GITHUB_TOKEN }}
     - name: Install wasm32 target
