@@ -91,6 +91,13 @@ impl ConfigurationBuilder {
         self.insert("indentWidth", (value as i32).into())
     }
 
+    /// The number of indentations to use on a hanging line.
+    ///
+    /// Default: `1`
+    pub fn hanging_indent_times(&mut self, value: u32) -> &mut Self {
+        self.insert("hangingIndentTimes", (value as i32).into())
+    }
+
     /// The kind of newline to use.
     ///
     /// Default: `NewLineKind::LineFeed`
@@ -672,6 +679,15 @@ impl ConfigurationBuilder {
         self.insert("whileStatement.preferHanging", value.into())
     }
 
+    /* indent times */
+    pub fn multi_line_indent_times(&mut self, value: u8) -> &mut Self {
+        self.insert("multiLine.indentTimes", (value as i32).into())
+    }
+
+    pub fn object_like_indent_times(&mut self, value: u8) -> &mut Self {
+        self.insert("objectLike.indentTimes", (value as i32).into())
+    }
+
     /* member spacing */
 
     pub fn enum_declaration_member_spacing(&mut self, value: MemberSpacing) -> &mut Self {
@@ -913,6 +929,7 @@ mod tests {
             .line_width(80)
             .use_tabs(false)
             .indent_width(4)
+            .hanging_indent_times(1)
             /* common */
             .quote_style(QuoteStyle::AlwaysDouble)
             .jsx_quote_style(JsxQuoteStyle::PreferSingle)
@@ -986,6 +1003,9 @@ mod tests {
             .union_and_intersection_type_prefer_hanging(true)
             .variable_statement_prefer_hanging(true)
             .while_statement_prefer_hanging(true)
+            /* indent times */
+            .multi_line_indent_times(1)
+            .object_like_indent_times(1)
             /* member spacing */
             .enum_declaration_member_spacing(MemberSpacing::Maintain)
             /* next control flow position */
@@ -1075,7 +1095,7 @@ mod tests {
             .while_statement_space_after_while_keyword(true);
 
         let inner_config = config.get_inner_config();
-        assert_eq!(inner_config.len(), 150);
+        assert_eq!(inner_config.len(), 153);
         let diagnostics = resolve_config(inner_config, &resolve_global_config(HashMap::new()).config).diagnostics;
         assert_eq!(diagnostics.len(), 0);
     }

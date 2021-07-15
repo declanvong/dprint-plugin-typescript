@@ -1,0 +1,75 @@
+-- filePath: file.tsx --
+~~ lineWidth: 40, multiLine.indentTimes: 2, objectLike.indentTimes: 1 ~~
+== should indent the function call arguments twice ==
+call(
+    a,
+    b,
+);
+
+[expect]
+call(
+        a,
+        b,
+);
+
+== should indent JSX attributes twice ==
+const t = (
+<Test
+foo="bar"
+/>
+);
+
+[expect]
+const t = (
+    <Test
+            foo="bar"
+    />
+);
+
+== should indent a multi-line array expression twice ==
+const t = [
+other, other, other,
+otherTest, other];
+
+[expect]
+const t = [
+        other,
+        other,
+        other,
+        otherTest,
+        other,
+];
+
+== should indent an object's properties only once ==
+const o = {
+a, b, c
+};
+
+[expect]
+const o = {
+    a,
+    b,
+    c,
+};
+
+== should indent an object destructuring pattern only once ==
+const {
+a,b,c,
+} = o;
+
+[expect]
+const {
+    a,
+    b,
+    c,
+} = o;
+
+== should indent type parameters twice ==
+type T<
+  Foo, Bar> = string;
+
+[expect]
+type T<
+        Foo,
+        Bar,
+> = string;

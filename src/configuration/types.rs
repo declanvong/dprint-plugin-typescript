@@ -284,6 +284,7 @@ generate_str_to_from![
 #[serde(rename_all = "camelCase")]
 pub struct Configuration {
     pub indent_width: u8,
+    pub hanging_indent_times: u8,
     pub line_width: u32,
     pub use_tabs: bool,
     pub new_line_kind: NewLineKind,
@@ -406,6 +407,11 @@ pub struct Configuration {
     pub variable_statement_prefer_hanging: bool,
     #[serde(rename = "whileStatement.preferHanging")]
     pub while_statement_prefer_hanging: bool,
+    /* indent times */
+    #[serde(rename = "multiLine.indentTimes")]
+    pub multi_line_indent_times: u8,
+    #[serde(rename = "objectLike.indentTimes")]
+    pub object_like_indent_times: u8,
     /* member spacing */
     #[serde(rename = "enumDeclaration.memberSpacing")]
     pub enum_declaration_member_spacing: MemberSpacing,

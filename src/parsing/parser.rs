@@ -727,7 +727,7 @@ fn parse_class_decl_or_expr<'a>(node: ClassDeclOrExpr<'a>, context: &mut Context
             end_info: None,
             space_char: Some(conditions::if_above_width_or(context.config.indent_width, Signal::SpaceOrNewLine.into(), " ".into()).into()),
         }));
-        items.push_condition(conditions::indent_if_start_of_line({
+        items.push_condition(conditions::indent_times_if_start_of_line({
             let mut items = PrintItems::new();
             items.push_str("extends ");
             items.extend(new_line_group({
@@ -739,7 +739,7 @@ fn parse_class_decl_or_expr<'a>(node: ClassDeclOrExpr<'a>, context: &mut Context
                 items
             }));
             items
-        }));
+        }, context.config.hanging_indent_times));
     }
     items.extend(parse_extends_or_implements(ParseExtendsOrImplementsOptions {
         text: "implements",
@@ -1212,6 +1212,7 @@ fn parse_named_import_or_export_specifiers<'a>(parent: Node<'a>, specifiers: Vec
         node: parent,
         members: specifiers,
         separator: get_trailing_commas(&parent, context).into(),
+        indent_times: context.config.object_like_indent_times,
         prefer_hanging: get_prefer_hanging(&parent, context),
         prefer_single_line: get_prefer_single_line(&parent, context),
         surround_single_line_with_spaces: get_use_space(&parent, context),
@@ -1344,7 +1345,7 @@ fn parse_arrow_func_expr<'a>(node: &'a ArrowExpr, context: &mut Context<'a>) -> 
             ));
         }
 
-        items.push_condition(conditions::indent_if_start_of_line(parsed_body.into()));
+        items.push_condition(conditions::indent_times_if_start_of_line(parsed_body.into(), context.config.hanging_indent_times));
         items.push_info(end_body_info);
     }
 
@@ -1460,15 +1461,16 @@ fn parse_binary_expr<'a>(node: &'a BinExpr, context: &mut Context<'a>) -> PrintI
             &flattened_binary_expr.last().unwrap().expr
         }, context.module);
     let indent_width = context.config.indent_width;
+    let hanging_indent_times = context.config.hanging_indent_times;
     let binary_expr_start_info = Info::new("binExprStartInfo");
     let allow_no_indent = get_allow_no_indent(node);
     let use_space_surrounding_operator = get_use_space_surrounding_operator(&node.op(), context);
     let is_parent_bin_expr = node.parent().kind() == NodeKind::BinExpr;
     let multi_line_options = {
         let mut options = if line_per_expression {
-            parser_helpers::MultiLineOptions::same_line_no_indent()
+            parser_helpers::MultiLineOptions::same_line_no_indent(hanging_indent_times)
         } else {
-            parser_helpers::MultiLineOptions::maintain_line_breaks()
+            parser_helpers::MultiLineOptions::maintain_line_breaks(hanging_indent_times)
         };
         options.with_hanging_indent = if is_parent_bin_expr {
             BoolOrCondition::Bool(false) // let the parent handle the indent
@@ -1762,6 +1764,7 @@ fn parse_class_expr<'a>(node: &'a ClassExpr, context: &mut Context<'a>) -> Print
 }
 
 fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> PrintItems {
+    let hanging_indent_times = context.config.hanging_indent_times;
     let operator_token = context.token_finder.get_first_operator_after(&node.test, "?").unwrap();
     let force_new_lines = !context.config.conditional_expression_prefer_single_line && (
         node_helpers::get_use_new_lines_for_nodes(&node.test, &node.cons, context.module)
@@ -1777,14 +1780,14 @@ fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> 
         items.push_info(top_most_data.top_most_info);
     }
 
-    items.extend(parser_helpers::new_line_group(with_queued_indent(parse_node_with_inner_parse(node.test.into(), context, {
+    items.extend(parser_helpers::new_line_group(with_queued_indent_times(parse_node_with_inner_parse(node.test.into(), context, {
         move |mut items, _| {
             if operator_position == OperatorPosition::SameLine {
                 items.push_str(" ?");
             }
             items
         }
-    }))));
+    }), hanging_indent_times)));
 
     // force re-evaluation of all the conditions below once the end info has been reached
     items.push_condition(conditions::force_reevaluation_once_resolved(context.end_statement_or_member_infos.peek().copied().unwrap_or(end_info)));
@@ -1806,7 +1809,7 @@ fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> 
                     items.push_str(" :");
                     items
                 } else {
-                    conditions::indent_if_start_of_line(items).into()
+                    conditions::indent_times_if_start_of_line(items, hanging_indent_times).into()
                 }
             }
         })));
@@ -1823,7 +1826,7 @@ fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> 
         items.push_info(before_alternate_info);
         items.extend(parser_helpers::new_line_group(parse_node_with_inner_parse(node.alt.into(), context, |items, _| {
             if operator_position == OperatorPosition::NextLine {
-                conditions::indent_if_start_of_line(items).into()
+                conditions::indent_times_if_start_of_line(items, hanging_indent_times).into()
             } else {
                 items
             }
@@ -1834,7 +1837,7 @@ fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> 
     };
 
     if top_most_data.is_top_most {
-        items.push_condition(conditions::indent_if_start_of_line(cons_and_alt_items));
+        items.push_condition(conditions::indent_times_if_start_of_line(cons_and_alt_items, hanging_indent_times));
     } else {
         let cons_and_alt_items = cons_and_alt_items.into_rc_path();
         let top_most_info = top_most_data.top_most_info;
@@ -1848,7 +1851,7 @@ fn parse_conditional_expr<'a>(node: &'a CondExpr, context: &mut Context<'a>) -> 
                     Some(false)
                 }
             },
-            with_indent(cons_and_alt_items.clone().into()),
+            with_indent_times(cons_and_alt_items.clone().into(), hanging_indent_times),
             cons_and_alt_items.into(),
         ));
     }
@@ -2014,6 +2017,7 @@ fn parse_object_lit<'a>(node: &'a ObjectLit, context: &mut Context<'a>) -> Print
         node: node.into(),
         members: node.props.iter().map(|x| x.into()).collect(),
         separator: context.config.object_expression_trailing_commas.into(),
+        indent_times: context.config.object_like_indent_times,
         prefer_hanging: context.config.object_expression_prefer_hanging,
         prefer_single_line: context.config.object_expression_prefer_single_line,
         surround_single_line_with_spaces: context.config.object_expression_space_surrounding_properties,
@@ -2050,6 +2054,7 @@ fn parse_paren_expr<'a>(node: &'a ParenExpr, context: &mut Context<'a>) -> Print
 }
 
 fn parse_sequence_expr<'a>(node: &'a SeqExpr, context: &mut Context<'a>) -> PrintItems {
+    let hanging_indent_times = context.config.hanging_indent_times;
     parse_separated_values(ParseSeparatedValuesParams {
         nodes: node.exprs.iter().map(|x| NodeOrSeparator::Node(x.into())).collect(),
         prefer_hanging: context.config.sequence_expression_prefer_hanging,
@@ -2059,7 +2064,7 @@ fn parse_sequence_expr<'a>(node: &'a SeqExpr, context: &mut Context<'a>) -> Prin
         single_line_space_at_start: false,
         single_line_space_at_end: false,
         custom_single_line_separator: None,
-        multi_line_options: parser_helpers::MultiLineOptions::same_line_start_hanging_indent(),
+        multi_line_options: parser_helpers::MultiLineOptions::same_line_start_hanging_indent(hanging_indent_times),
         force_possible_newline_at_start: false,
         node_sorter: None,
     }, context)
@@ -2142,7 +2147,7 @@ fn parse_template_literal<'a>(quasis: Vec<Node<'a>>, exprs: Vec<Node<'a>>, conte
                 with_no_new_lines(parsed_expr)
             } else {
                 if possible_surround_newlines {
-                    parser_helpers::surround_with_newlines_indented_if_multi_line(new_line_group(parsed_expr), context.config.indent_width)
+                    parser_helpers::surround_with_newlines_indented_if_multi_line(new_line_group(parsed_expr), context.config.indent_width, context.config.hanging_indent_times)
                 } else {
                     parsed_expr
                 }
@@ -2284,12 +2289,12 @@ fn parse_export_named_specifier<'a>(node: &'a ExportNamedSpecifier, context: &mu
     items.extend(parse_node(node.orig.into(), context));
     if let Some(exported) = node.exported {
         items.push_signal(Signal::SpaceOrNewLine);
-        items.push_condition(conditions::indent_if_start_of_line({
+        items.push_condition(conditions::indent_times_if_start_of_line({
             let mut items = PrintItems::new();
             items.push_str("as ");
             items.extend(parse_node(exported.into(), context));
             items
-        }));
+        }, context.config.hanging_indent_times));
     }
 
     items
@@ -2310,12 +2315,12 @@ fn parse_import_named_specifier<'a>(node: &'a ImportNamedSpecifier, context: &mu
     if let Some(imported) = node.imported {
         items.extend(parse_node(imported.into(), context));
         items.push_signal(Signal::SpaceOrNewLine);
-        items.push_condition(conditions::indent_if_start_of_line({
+        items.push_condition(conditions::indent_times_if_start_of_line({
             let mut items = PrintItems::new();
             items.push_str("as ");
             items.extend(parse_node(node.local.into(), context));
             items
-        }));
+        }, context.config.hanging_indent_times));
     } else {
         items.extend(parse_node(node.local.into(), context));
     }
@@ -2530,6 +2535,7 @@ fn parse_type_lit<'a>(node: &'a TsTypeLit, context: &mut Context<'a>) -> PrintIt
             single_line: Some(semi_colon_or_comma_to_separator_value(context.config.type_literal_separator_kind_single_line, context)),
             multi_line: Some(semi_colon_or_comma_to_separator_value(context.config.type_literal_separator_kind_multi_line, context)),
         },
+        indent_times: context.config.object_like_indent_times,
         prefer_hanging: context.config.type_literal_prefer_hanging,
         prefer_single_line: context.config.type_literal_prefer_single_line,
         surround_single_line_with_spaces: context.config.type_literal_space_surrounding_properties,
@@ -2685,6 +2691,8 @@ fn parse_jsx_namespaced_name<'a>(node: &'a JSXNamespacedName, context: &mut Cont
 }
 
 fn parse_jsx_opening_element<'a>(node: &'a JSXOpeningElement, context: &mut Context<'a>) -> PrintItems {
+    let indent_times = context.config.multi_line_indent_times;
+    let hanging_indent_times = context.config.hanging_indent_times;
     let force_use_new_lines = get_force_is_multi_line(node, context);
     let start_info = Info::new("openingElementStartInfo");
     let mut items = PrintItems::new();
@@ -2706,7 +2714,7 @@ fn parse_jsx_opening_element<'a>(node: &'a JSXOpeningElement, context: &mut Cont
             single_line_space_at_start: true,
             single_line_space_at_end: node.self_closing(),
             custom_single_line_separator: None,
-            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times),
             force_possible_newline_at_start: false,
             node_sorter: None,
         }, context));
@@ -3025,6 +3033,7 @@ fn parse_object_pat<'a>(node: &'a ObjectPat, context: &mut Context<'a>) -> Print
         node: node.into(),
         members: node.props.iter().map(|x| x.into()).collect(),
         separator: get_trailing_commas(node, context).into(),
+        indent_times: context.config.object_like_indent_times,
         prefer_hanging: context.config.object_pattern_prefer_hanging,
         prefer_single_line: context.config.object_pattern_prefer_single_line,
         surround_single_line_with_spaces: context.config.object_pattern_space_surrounding_properties,
@@ -3462,7 +3471,7 @@ fn parse_for_stmt<'a>(node: &'a ForStmt, context: &mut Context<'a>) -> PrintItem
                 single_line_space_at_end: false,
                 single_line_separator: separator_after_semi_colons.into(),
                 indent_width: context.config.indent_width,
-                multi_line_options: parser_helpers::MultiLineOptions::same_line_no_indent(),
+                multi_line_options: parser_helpers::MultiLineOptions::same_line_no_indent(context.config.hanging_indent_times),
                 force_possible_newline_at_start: false,
             }).items
         },
@@ -3519,12 +3528,12 @@ fn parse_for_in_stmt<'a>(node: &'a ForInStmt, context: &mut Context<'a>) -> Prin
             let mut items = PrintItems::new();
             items.extend(parse_node(node.left.into(), context));
             items.push_signal(Signal::SpaceOrNewLine);
-            items.push_condition(conditions::indent_if_start_of_line({
+            items.push_condition(conditions::indent_times_if_start_of_line({
                 let mut items = PrintItems::new();
                 items.push_str("in ");
                 items.extend(parse_node(node.right.into(), context));
                 items
-            }));
+            }, context.config.hanging_indent_times));
             items
         },
         ParseNodeInParensOptions {
@@ -3570,12 +3579,12 @@ fn parse_for_of_stmt<'a>(node: &'a ForOfStmt, context: &mut Context<'a>) -> Prin
             let mut items = PrintItems::new();
             items.extend(parse_node(node.left.into(), context));
             items.push_signal(Signal::SpaceOrNewLine);
-            items.push_condition(conditions::indent_if_start_of_line({
+            items.push_condition(conditions::indent_times_if_start_of_line({
                 let mut items = PrintItems::new();
                 items.push_str("of ");
                 items.extend(parse_node(node.right.into(), context));
                 items
-            }));
+            }, context.config.hanging_indent_times));
             items
         },
         ParseNodeInParensOptions {
@@ -3926,7 +3935,7 @@ fn parse_var_decl<'a>(node: &'a VarDecl, context: &mut Context<'a>) -> PrintItem
             single_line_space_at_start: false,
             single_line_space_at_end: false,
             custom_single_line_separator: None,
-            multi_line_options: parser_helpers::MultiLineOptions::same_line_start_hanging_indent(),
+            multi_line_options: parser_helpers::MultiLineOptions::same_line_start_hanging_indent(context.config.hanging_indent_times),
             force_possible_newline_at_start: false,
             node_sorter: None,
         }, context));
@@ -4020,6 +4029,7 @@ fn parse_array_type<'a>(node: &'a TsArrayType, context: &mut Context<'a>) -> Pri
 }
 
 fn parse_conditional_type<'a>(node: &'a TsConditionalType, context: &mut Context<'a>) -> PrintItems {
+    let hanging_indent_times = context.config.hanging_indent_times;
     let use_new_lines = !context.config.conditional_type_prefer_single_line
         && node_helpers::get_use_new_lines_for_nodes(&node.true_type, &node.false_type, context.module);
     let top_most_data = get_top_most_data(node, context);
@@ -4036,14 +4046,14 @@ fn parse_conditional_type<'a>(node: &'a TsConditionalType, context: &mut Context
         items.push_info(top_most_data.top_most_info);
     }
 
-    items.push_condition(conditions::indent_if_start_of_line(parser_helpers::new_line_group(parse_node(node.extends_type.into(), context))));
+    items.push_condition(conditions::indent_times_if_start_of_line(parser_helpers::new_line_group(parse_node(node.extends_type.into(), context)), hanging_indent_times));
     items.push_signal(Signal::SpaceOrNewLine);
-    items.push_condition(conditions::indent_if_start_of_line({
+    items.push_condition(conditions::indent_times_if_start_of_line({
         let mut items = PrintItems::new();
         items.push_str("? ");
         items.extend(parser_helpers::new_line_group(parse_node(node.true_type.into(), context)));
         items
-    }));
+    }, hanging_indent_times));
 
     // false type
     if use_new_lines {
@@ -4063,7 +4073,7 @@ fn parse_conditional_type<'a>(node: &'a TsConditionalType, context: &mut Context
     if is_parent_conditional_type {
         items.extend(false_type_parsed);
     } else {
-        items.push_condition(conditions::indent_if_start_of_line(false_type_parsed));
+        items.push_condition(conditions::indent_times_if_start_of_line(false_type_parsed, hanging_indent_times));
     }
 
     return items;
@@ -4347,7 +4357,7 @@ fn parse_mapped_type<'a>(node: &'a TsMappedType, context: &mut Context<'a>) -> P
         if force_use_new_lines {
             surround_with_new_lines(with_indent(inner_items))
         } else {
-            parser_helpers::surround_with_newlines_indented_if_multi_line(inner_items, context.config.indent_width)
+            parser_helpers::surround_with_newlines_indented_if_multi_line(inner_items, context.config.indent_width, context.config.hanging_indent_times)
         }
     }, |_| None, ParseSurroundedByTokensOptions {
         open_token: "{",
@@ -4467,6 +4477,8 @@ fn parse_type_parameters<'a>(node: TypeParamNode<'a>, context: &mut Context<'a>)
     let params = node.params();
     let force_use_new_lines = get_use_new_lines(&node, &params, context);
     let mut items = PrintItems::new();
+    let indent_times = context.config.multi_line_indent_times;
+    let hanging_indent_times = context.config.hanging_indent_times;
 
     items.push_str("<");
     items.extend(parse_separated_values(ParseSeparatedValuesParams {
@@ -4478,7 +4490,7 @@ fn parse_type_parameters<'a>(node: TypeParamNode<'a>, context: &mut Context<'a>)
         single_line_space_at_start: false,
         single_line_space_at_end: false,
         custom_single_line_separator: None,
-        multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+        multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times),
         force_possible_newline_at_start: false,
         node_sorter: None,
     }, context));
@@ -4576,20 +4588,22 @@ fn parse_union_or_intersection_type<'a>(node: UnionOrIntersectionType<'a>, conte
     let has_leading_comments = !leading_comments.is_empty();
 
     let indent_width = context.config.indent_width;
+    let indent_times = context.config.multi_line_indent_times;
+    let hanging_indent_times = context.config.hanging_indent_times;
     let prefer_hanging = context.config.union_and_intersection_type_prefer_hanging;
     let is_parent_union_or_intersection = matches!(node.node.parent().unwrap().kind(), NodeKind::TsUnionType | NodeKind::TsIntersectionType);
     let multi_line_options = if !is_parent_union_or_intersection {
         if use_surround_newlines(&node.node) {
-            parser_helpers::MultiLineOptions::surround_newlines_indented()
+            parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times)
         } else if has_leading_comments {
-            parser_helpers::MultiLineOptions::same_line_no_indent()
+            parser_helpers::MultiLineOptions::same_line_no_indent(hanging_indent_times)
         } else {
-            parser_helpers::MultiLineOptions::new_line_start()
+            parser_helpers::MultiLineOptions::new_line_start(hanging_indent_times)
         }
     } else if has_leading_comments {
-        parser_helpers::MultiLineOptions::same_line_no_indent()
+        parser_helpers::MultiLineOptions::same_line_no_indent(hanging_indent_times)
     } else {
-        parser_helpers::MultiLineOptions::same_line_start_hanging_indent()
+        parser_helpers::MultiLineOptions::same_line_start_hanging_indent(hanging_indent_times)
     };
     let parse_result = parser_helpers::parse_separated_values(|is_multi_line_or_hanging_ref| {
         let is_multi_line_or_hanging = is_multi_line_or_hanging_ref.create_resolver();
@@ -4974,6 +4988,8 @@ fn parse_array_like_nodes<'a>(opts: ParseArrayLikeNodesOptions<'a>, context: &mu
     let force_use_new_lines = get_force_use_new_lines(&node, &nodes, opts.prefer_single_line, context);
     let mut items = PrintItems::new();
     let first_member = nodes.get(0).map(|x| x.span());
+    let indent_times = context.config.multi_line_indent_times;
+    let hanging_indent_times = context.config.hanging_indent_times;
 
     items.extend(parse_surrounded_by_tokens(|context| {
         parse_separated_values(ParseSeparatedValuesParams {
@@ -4985,7 +5001,7 @@ fn parse_array_like_nodes<'a>(opts: ParseArrayLikeNodesOptions<'a>, context: &mu
             single_line_space_at_start: false,
             single_line_space_at_end: false,
             custom_single_line_separator: None,
-            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times),
             force_possible_newline_at_start: false,
             node_sorter: None,
         }, context)
@@ -5395,6 +5411,8 @@ fn parse_parameters_or_arguments<'a, F>(opts: ParseParametersOrArgumentsOptions<
     let first_member_span = opts.nodes.iter().map(|n| n.span()).next();
     let nodes = opts.nodes;
     let prefer_hanging = if is_parameters { context.config.parameters_prefer_hanging } else { context.config.arguments_prefer_hanging };
+    let indent_times = context.config.multi_line_indent_times;
+    let hanging_indent_times = context.config.hanging_indent_times;
     let trailing_commas = get_trailing_commas(&opts.node, &nodes, is_parameters, context);
 
     return parse_surrounded_by_tokens(|context| {
@@ -5427,7 +5445,7 @@ fn parse_parameters_or_arguments<'a, F>(opts: ParseParametersOrArgumentsOptions<
                 single_line_space_at_start: false,
                 single_line_space_at_end: false,
                 custom_single_line_separator: None,
-                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times),
                 force_possible_newline_at_start: is_parameters,
                 node_sorter: None,
             }, context));
@@ -5922,11 +5940,11 @@ fn parse_node_in_parens<'a>(
     return parse_surrounded_by_tokens(|context| {
         let parsed_node = parse_node(context);
         if force_use_new_lines {
-            surround_with_new_lines(with_indent(parsed_node))
+            surround_with_new_lines(with_indent_times(parsed_node, context.config.hanging_indent_times))
         } else if opts.prefer_hanging {
             parsed_node
         } else {
-            parser_helpers::surround_with_newlines_indented_if_multi_line(parsed_node, context.config.indent_width)
+            parser_helpers::surround_with_newlines_indented_if_multi_line(parsed_node, context.config.indent_width, context.config.hanging_indent_times)
         }
     }, |_| None, ParseSurroundedByTokensOptions {
         open_token: "(",
@@ -5982,8 +6000,10 @@ fn parse_extends_or_implements<'a>(opts: ParseExtendsOrImplementsOptions<'a>, co
         end_info: None,
         space_char: Some(conditions::if_above_width_or(context.config.indent_width, Signal::SpaceOrNewLine.into(), " ".into()).into()),
     }));
+
+    let hanging_indent_times = context.config.hanging_indent_times;
     // the newline group will force it to put the extends or implements on a new line
-    items.push_condition(conditions::indent_if_start_of_line(parser_helpers::new_line_group({
+    items.push_condition(conditions::indent_times_if_start_of_line(parser_helpers::new_line_group({
         let mut items = PrintItems::new();
         items.push_str(opts.text);
         items.extend(parse_separated_values(ParseSeparatedValuesParams {
@@ -5995,12 +6015,12 @@ fn parse_extends_or_implements<'a>(opts: ParseExtendsOrImplementsOptions<'a>, co
             single_line_space_at_start: true,
             single_line_space_at_end: false,
             custom_single_line_separator: None,
-            multi_line_options: parser_helpers::MultiLineOptions::new_line_start(),
+            multi_line_options: parser_helpers::MultiLineOptions::new_line_start(hanging_indent_times),
             force_possible_newline_at_start: false,
             node_sorter: None,
         }, context));
         items
-    })));
+    }), hanging_indent_times));
 
     items
 }
@@ -6009,6 +6029,7 @@ struct ParseObjectLikeNodeOptions<'a> {
     node: Node<'a>,
     members: Vec<Node<'a>>,
     separator: Separator,
+    indent_times: u8,
     prefer_hanging: bool,
     prefer_single_line: bool,
     surround_single_line_with_spaces: bool,
@@ -6023,6 +6044,7 @@ fn parse_object_like_node<'a>(opts: ParseObjectLikeNodeOptions<'a>, context: &mu
     let open_brace_token = child_tokens.iter().find(|t| t.token == Token::LBrace);
     let close_brace_token = child_tokens.iter().rev().find(|t| t.token == Token::RBrace);
     let force_multi_line = get_use_new_lines_for_nodes_with_preceeding_token("{", &opts.members, opts.prefer_single_line, context);
+    let hanging_indent_times = context.config.hanging_indent_times;
 
     let first_member_span = opts.members.get(0).map(|x| x.span());
     let obj_span = if let (Some(open_brace_token), Some(close_brace_token)) = (open_brace_token, close_brace_token) {
@@ -6044,7 +6066,7 @@ fn parse_object_like_node<'a>(opts: ParseObjectLikeNodeOptions<'a>, context: &mu
                 single_line_space_at_start: opts.surround_single_line_with_spaces,
                 single_line_space_at_end: opts.surround_single_line_with_spaces,
                 custom_single_line_separator: None,
-                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+                multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(opts.indent_times, hanging_indent_times),
                 force_possible_newline_at_start: false,
                 node_sorter: opts.node_sorter,
             }, context)
@@ -6198,7 +6220,7 @@ fn parse_computed_prop_like<'a>(
         if force_use_new_lines {
             surround_with_new_lines(with_indent(parse_inner(context)))
         } else {
-            parser_helpers::surround_with_newlines_indented_if_multi_line(parse_inner(context), context.config.indent_width)
+            parser_helpers::surround_with_newlines_indented_if_multi_line(parse_inner(context), context.config.indent_width, context.config.hanging_indent_times)
         }
     }, |_| None, ParseSurroundedByTokensOptions {
         open_token: "[",
@@ -6245,7 +6267,7 @@ fn parse_decorators<'a>(decorators: &[&'a Decorator<'a>], is_inline: bool, conte
         single_line_space_at_start: false,
         single_line_space_at_end: is_inline,
         custom_single_line_separator: None,
-        multi_line_options: parser_helpers::MultiLineOptions::same_line_no_indent(),
+        multi_line_options: parser_helpers::MultiLineOptions::same_line_no_indent(context.config.hanging_indent_times),
         force_possible_newline_at_start: false,
         node_sorter: None,
     }, context);
@@ -7133,7 +7155,7 @@ fn parse_assignment_like_with_token<'a>(expr: Node<'a>, op: &str, op_token: Opti
             ));
         }
         let assignment = parse_node(expr, context);
-        let assignment = if had_op_trailing_comments { assignment } else { conditions::indent_if_start_of_line(assignment).into() };
+        let assignment = if had_op_trailing_comments { assignment } else { conditions::indent_times_if_start_of_line(assignment, context.config.hanging_indent_times).into() };
         let assignment = if use_new_line_group { new_line_group(assignment) } else { assignment };
         items.extend(assignment);
         items
@@ -7274,6 +7296,8 @@ fn parse_surrounded_by_tokens<'a>(
                 if comments.clone().any(|c| !context.has_handled_comment(c)) {
                     if is_single_line {
                         let indent_width = context.config.indent_width;
+                        let indent_times = context.config.multi_line_indent_times;
+                        let hanging_indent_times = context.config.hanging_indent_times;
                         items.extend(parser_helpers::parse_separated_values(|_| {
                             let mut parsed_comments = Vec::new();
                             for c in comments {
@@ -7297,7 +7321,7 @@ fn parse_surrounded_by_tokens<'a>(
                             single_line_space_at_end: false,
                             single_line_separator: Signal::SpaceOrNewLine.into(),
                             indent_width,
-                            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indented(),
+                            multi_line_options: parser_helpers::MultiLineOptions::surround_newlines_indent_times(indent_times, hanging_indent_times),
                             force_possible_newline_at_start: false,
                         }).items);
                     } else {

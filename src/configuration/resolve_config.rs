@@ -42,6 +42,7 @@ pub fn resolve_config(config: ConfigKeyMap, global_config: &GlobalConfiguration)
     let prefer_hanging = get_value(&mut config, "preferHanging", false, &mut diagnostics);
     let prefer_single_line_nullable = get_nullable_value(&mut config, "preferSingleLine", &mut diagnostics);
     let prefer_single_line = prefer_single_line_nullable.unwrap_or(false);
+    let multi_line_indent_times = get_value(&mut config, "multiLine.indentTimes", 1, &mut diagnostics);
     let space_surrounding_properties = get_value(&mut config, "spaceSurroundingProperties", true, &mut diagnostics);
     let type_literal_separator_kind = get_value(&mut config, "typeLiteral.separatorKind", SemiColonOrComma::SemiColon, &mut diagnostics);
     let quote_style = get_value(&mut config, "quoteStyle", QuoteStyle::AlwaysDouble, &mut diagnostics);
@@ -50,6 +51,7 @@ pub fn resolve_config(config: ConfigKeyMap, global_config: &GlobalConfiguration)
         line_width: get_value(&mut config, "lineWidth", global_config.line_width.unwrap_or(DEFAULT_GLOBAL_CONFIGURATION.line_width), &mut diagnostics),
         use_tabs: get_value(&mut config, "useTabs", global_config.use_tabs.unwrap_or(DEFAULT_GLOBAL_CONFIGURATION.use_tabs), &mut diagnostics),
         indent_width: get_value(&mut config, "indentWidth", global_config.indent_width.unwrap_or(DEFAULT_GLOBAL_CONFIGURATION.indent_width), &mut diagnostics),
+        hanging_indent_times: get_value(&mut config, "hangingIndentTimes", 1, &mut diagnostics),
         new_line_kind: get_value(&mut config, "newLineKind", global_config.new_line_kind.unwrap_or(DEFAULT_GLOBAL_CONFIGURATION.new_line_kind), &mut diagnostics),
         quote_style,
         semi_colons,
@@ -115,6 +117,9 @@ pub fn resolve_config(config: ConfigKeyMap, global_config: &GlobalConfiguration)
         union_and_intersection_type_prefer_hanging: get_value(&mut config, "unionAndIntersectionType.preferHanging", prefer_hanging, &mut diagnostics),
         variable_statement_prefer_hanging: get_value(&mut config, "variableStatement.preferHanging", prefer_hanging, &mut diagnostics),
         while_statement_prefer_hanging: get_value(&mut config, "whileStatement.preferHanging", prefer_hanging, &mut diagnostics),
+        /* indent times */
+        multi_line_indent_times,
+        object_like_indent_times: get_value(&mut config, "objectLike.indentTimes", multi_line_indent_times, &mut diagnostics),
         /* member spacing */
         enum_declaration_member_spacing: get_value(&mut config, "enumDeclaration.memberSpacing", MemberSpacing::Maintain, &mut diagnostics),
         /* next control flow position */
